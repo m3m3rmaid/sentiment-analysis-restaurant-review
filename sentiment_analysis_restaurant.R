@@ -1,0 +1,93 @@
+
+#Analyzing Restaurant Customer Review Using R Studio
+
+# load required packages
+library(tidyverse)
+library(syuzhet)
+library(tidytext)
+library(dplyr)
+library(janeaustenr)
+library(textdata)
+
+# import  datasets
+df_res <- read_csv("C:/Users/mayjaikaew/Downloads/Restaurant_Reviews.csv")
+#transform to tibble
+text.res <- tibble(text = str_to_lower(df_res$Review))
+
+#Explore data structure
+glimpse(df_res)
+glimpse(text.res)
+
+# analyze sentiments using the syuzhet package based on the NRC sentiment dictionary
+emotion.res <- get_nrc_sentiment(text.res$text)
+View(emotion.res)
+#summarize each sentiments
+emores_sum <- colSums(emotion.res)
+emores_sum
+#transform to data frame
+df.emo <- data.frame(count=emores_sum, emotion=names(emores_sum))
+df.emo
+
+
+# Data transformation
+df.emo.pie <- df.emo %>% arrange(desc(count)) %>% 
+  mutate(perc = `count` / sum(`count`)) %>% 
+  arrange(perc) %>% mutate(labels = scales::percent(perc))
+
+#create doughnut chart showing the percentage for each of ten different emotions and rating
+ggplot(df.emo.pie, aes(x = 2, y = perc, fill = emotion)) +
+  geom_col( width=1, color="white") +
+  geom_text(aes(label = labels),
+            position = position_stack(vjust = 0.5))+
+  coord_polar("y", start=0) +
+  theme_void() +
+  labs(fill = "Emotion status", title = "Restaurant Review showing the percentage for ten emotion status ")+
+  xlim(0.5, 2.5)
+
+# create a barplot showing the counts for each of eight different emotions and positive/negative rating
+ggplot(df.emo, aes(x = reorder(emotion, -count), y = count, fill = emotion)) + 
+  geom_bar(stat = 'identity') +labs(title = "Distribution of emotion status from customer reviews.", x ="Sentiment")
+
+
+# sentiment analysis with the tidytext package using the "bing" lexicon
+word_count <- text.res %>% unnest_tokens(output = word, input = text) %>%
+  inner_join(get_sentiments("bing")) %>% count(word,sentiment, sort = TRUE)
+
+
+# select top 10 words by sentiment
+top_10_words <- word_count %>% 
+  group_by(sentiment) %>% 
+  slice_max(order_by = n, n = 10) %>% 
+  ungroup() %>% 
+  mutate(word = reorder(word, n)) 
+top_10_words
+
+# create a barplot showing contribution of words to sentiment
+top_10_words %>% 
+  ggplot(aes(word, n, fill = sentiment)) + 
+  geom_col(show.legend = FALSE) + 
+  facet_wrap(~sentiment, scales = "free_y") + 
+  labs(y = "Contribution to sentiment", x = NULL) + 
+  coord_flip() 
+
+
+# sentiment analysis with the tidytext package using the "loughran" lexicon
+loughran_counts <- text.res %>% unnest_tokens(output = word, input = text) %>%
+  inner_join(get_sentiments("loughran")) %>%
+  count(word, sentiment, sort = TRUE) 
+
+# select top 10 words by sentiment
+loughran_top_10_words <- loughran_counts %>% 
+  group_by(sentiment) %>% 
+  slice_max(order_by = n, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n))
+loughran_top_10_words
+
+# create a barplot showing contribution of words to sentiment
+loughran_top_10_words %>% 
+  ggplot(aes(word, n, fill = sentiment)) + 
+  geom_col(show.legend = FALSE) + 
+  facet_wrap(~sentiment, scales = "free_y") + 
+  labs(y = "Contribution to sentiment", x = NULL) + 
+  coord_flip() 

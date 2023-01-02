@@ -1,0 +1,153 @@
+---
+title: "Analyzing Restaurant Customer Review Using Sentiment Analysis"
+author: "Piangkwan Jaikaew"
+date: "17-12-2022"
+output: pdf_document
+---
+
+```{r  Uno , echo=FALSE, message=FALSE, error= FALSE}
+
+library(tidyverse)
+library(syuzhet)
+library(tidytext)
+library(dplyr)
+library(janeaustenr)
+library(textdata)
+```
+
+
+# 1. Introduction
+
+Customer satisfaction in the restaurant industry has an outsized impact on success. Asking for feedback and review helps in improving the customer satisfaction. The reviews plays a vital role for restaurants to be successful and steadily grow in the future.
+
+In this case study, I will conduct a sentiment analysis for the local restaurant. The original dataset was sourced from Kaggle datasets. It consists of 1000 reviews from customers.
+
+# 2. Summary
+
+The dataset demonstrates mainly positive reviews, approximately 50% from word counts.By using three different sentiment analysis methods, NRC, bing and loughran to extract and analyze in text mining, it shown the correlated result as a positive feedback.
+
+# 3. Methodology 
+1. Clean and transform data using dplyr package.
+2. Analyse sentiments using the syuzhet package based on the NRC sentiment dictionary.
+3. Conduct sentiment analysis using the "bing" lexicon.
+4. Conduct sentiment analysis using the "loughran" lexicon.
+5. Visualization with ggplot2 package.
+
+
+## Import and transform data.
+```{r  , echo=FALSE, message=FALSE, warning=FALSE }
+# import  datasets
+df_res <- read_csv("C:/Users/mayjaikaew/Downloads/Restaurant_Reviews.csv")
+#transform to tibble
+text.res <- tibble(text = str_to_lower(df_res$Review))
+
+```
+
+## Sentiment Analysis
+
+### Syuzhet package is used for sentiment analysis 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# analyze sentiments using the syuzhet package based on the NRC sentiment dictionary
+emotion.res <- get_nrc_sentiment(text.res$text)
+#summarize each sentiments
+emores_sum <- colSums(emotion.res)
+#transform to data frame
+df.emo <- data.frame(count=emores_sum, emotion=names(emores_sum))
+
+
+# Data transformation
+df.emo.pie <- df.emo %>% arrange(desc(count)) %>% 
+  mutate(perc = `count` / sum(`count`)) %>% 
+  arrange(perc) %>% mutate(labels = scales::percent(perc))
+tib.emo.pie <- as_tibble(df.emo.pie)
+tib.emo.pie
+```
+
+**Chart 1:** The table shows a number of count and percentage of ten different emotion categories. 
+
+```{r  DataCharge2 , echo=FALSE, message=FALSE}
+ggplot(df.emo.pie, aes(x = 2, y = perc, fill = emotion)) +
+  geom_col( width=1, color="white") +
+  geom_text(aes(label = labels),
+            position = position_stack(vjust = 0.5))+
+  coord_polar("y", start=0) +
+  theme_void() +
+  labs(fill = "Emotion status", title = "Restaurant Review showing the percentage for ten emotion status ")+
+  xlim(0.5, 2.5)
+
+```
+
+**Chart 2:** Approximately 50% of reviews expresses positive feeling toward the restaurant.
+
+```{r  DataCharge3 , echo=FALSE, message=FALSE}
+# create a barplot showing the counts for each of eight different emotions and positive/negative rating
+ggplot(df.emo, aes(x = reorder(emotion, -count), y = count, fill = emotion)) + 
+  geom_bar(stat = 'identity') +labs(title = "Distribution of emotion status from customer reviews.", x ="Sentiment")
+
+```
+
+**Chart 3:**  The word counts show mainly positive which is good news for restaurant.
+
+### Sentiment Analysis with Bing lexicon
+
+```{r  DataCharge4 , echo=FALSE, message=FALSE}
+# sentiment analysis with the tidytext package using the "bing" lexicon
+word_count <- text.res %>% unnest_tokens(output = word, input = text) %>%
+  inner_join(get_sentiments("bing")) %>% count(word,sentiment, sort = TRUE)
+
+
+# select top 10 words by sentiment
+top_10_words <- word_count %>% 
+  group_by(sentiment) %>% 
+  slice_max(order_by = n, n = 10) %>% 
+  ungroup() %>% 
+  mutate(word = reorder(word, n)) 
+top_10_words
+
+# create a barplot showing contribution of words to sentiment
+top_10_words %>% 
+  ggplot(aes(word, n, fill = sentiment)) + 
+  geom_col(show.legend = FALSE) + 
+  facet_wrap(~sentiment, scales = "free_y") + 
+  labs(y = "Contribution to sentiment", x = NULL) + 
+  coord_flip() 
+
+
+```
+
+**Chart 4:** The positive sentiment is demonstrated in a greater proportion than negative sentiment from bing lexicon.
+
+### Sentiment Analysis with Loughran lexicon
+
+```{r  DataCharge5, echo=FALSE, message=FALSE}
+# sentiment analysis with the tidytext package using the "loughran" lexicon
+loughran_counts <- text.res %>% unnest_tokens(output = word, input = text) %>%
+  inner_join(get_sentiments("loughran")) %>%
+  count(word, sentiment, sort = TRUE) 
+
+# select top 10 words by sentiment
+loughran_top_10_words <- loughran_counts %>% 
+  group_by(sentiment) %>% 
+  slice_max(order_by = n, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n))
+loughran_top_10_words
+
+# create a barplot showing contribution of words to sentiment
+loughran_top_10_words %>% 
+  ggplot(aes(word, n, fill = sentiment)) + 
+  geom_col(show.legend = FALSE) + 
+  facet_wrap(~sentiment, scales = "free_y") + 
+  labs(y = "Contribution to sentiment", x = NULL) + 
+  coord_flip() 
+
+```
+
+**Chart 5:** Still show primary positive! even more specific expressions such as uncertainty are shown by Loughran lexicon.
+
+# 4. Conclusion
+
+For limitation, the current data needs to provide a more oversized data frame and a specific period of time to measure on exact feedback in order to minimize a bias information to be as low as possible. \
+
